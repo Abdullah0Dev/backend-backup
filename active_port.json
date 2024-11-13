@@ -1,0 +1,127 @@
+{
+    "352733105770960": [{
+        "HTTP_PORT": "8004",
+        "IS_EXPIRED": 0,
+        "IS_OVER_QUOTA": 0,
+        "LOGIN": "abdullah",
+        "OS": "",
+        "PASSWORD": "server",
+        "PROXY_VALID_BEFORE": "",
+        "RESET_SECURE_LINK": {
+            "URL": "http://188.245.37.125:7016/apix/reset_ip_secure?hash=KNQWY5DFMRPV65XMKBTXUKAAJJOAXOVQ6GWSONAAIK63ULDCYXE62SZZOCKJFATCVYRY6C2EUDRUI===",
+            "VALID_UNTIL": "2029-11-01@01:00:00 CEST"
+        },
+        "SOCKS_PORT": "5004",
+        "http_creds": "188.245.37.125:8004:abdullah:server",
+        "is_port_vpn_connected": null,
+        "portID": "portw7VwiCvS",
+        "portName": "nosy_harmonize",
+        "redirector": {
+            "ActiveState": "active",
+            "NRestarts": 0,
+            "SubState": "running",
+            "UPTIME": "-1 d, 23 h, 56 m, 3 s."
+        },
+        "socks5_creds": "188.245.37.125:5004:abdullah:server"
+    }],
+    "360337323604000": [{
+        "HTTP_PORT": "8003",
+        "IS_EXPIRED": 0,
+        "IS_OVER_QUOTA": 0,
+        "LOGIN": "nocomment",
+        "OS": "",
+        "PASSWORD": "proxy",
+        "PROXY_VALID_BEFORE": "",
+        "RESET_SECURE_LINK": {
+            "URL": "http://188.245.37.125:7016/apix/reset_ip_secure?hash=KNQWY5DFMRPV6M62RJ462Q3KERC5Y4SJTSZS7DQE4URCC3DVVVVWECUKJ2SAA4M5P2K7F55ZB2BHW===",
+            "VALID_UNTIL": "2029-11-01@01:00:00 CEST"
+        },
+        "SOCKS_PORT": "5003",
+        "http_creds": "188.245.37.125:8003:nocomment:proxy",
+        "is_port_vpn_connected": null,
+        "portID": "port5JygEix3",
+        "portName": "breakable_hurt",
+        "redirector": {
+            "ActiveState": "active",
+            "NRestarts": 0,
+            "SubState": "running",
+            "UPTIME": "-1 d, 5 h, 52 m, 56 s."
+        },
+        "socks5_creds": "188.245.37.125:5003:nocomment:proxy"
+    }],
+    "860191063638015": [{
+        "HTTP_PORT": "28025",
+        "IS_EXPIRED": 0,
+        "IS_OVER_QUOTA": 0,
+        "LOGIN": "def294246",
+        "OS": "",
+        "PASSWORD": "def294246",
+        "PROXY_VALID_BEFORE": "",
+        "RESET_SECURE_LINK": {
+            "URL": "http://188.245.37.125:7016/apix/reset_ip_secure?hash=KNQWY5DFMRPV7PPGRPDNZ3357UOISWSRDWZPHZF3AV7SQ56XG6MBEW3K6LSB6EP4VYRD7HK5OPRX7RVX36532R46Y7J2AXVN43YTO5Q=",
+            "VALID_UNTIL": "2029-11-01@01:00:00 CEST"
+        },
+        "SOCKS_PORT": "25025",
+        "http_creds": "188.245.37.125:28025:def294246:def294246",
+        "is_port_vpn_connected": null,
+        "portID": "randomport906",
+        "portName": "randomport906",
+        "redirector": {
+            "ActiveState": "active",
+            "NRestarts": 0,
+            "SubState": "running",
+            "UPTIME": "-1 d, 6 h, 2 m, 5 s."
+        },
+        "socks5_creds": "188.245.37.125:25025:def294246:def294246"
+    }],
+    "860191063676890": [{
+        "HTTP_PORT": "28024",
+        "IS_EXPIRED": 0,
+        "IS_OVER_QUOTA": 0,
+        "LOGIN": "def294246",
+        "OS": "",
+        "PASSWORD": "def294246",
+        "PROXY_VALID_BEFORE": "",
+        "RESET_SECURE_LINK": {
+            "URL": "http://188.245.37.125:7016/apix/reset_ip_secure?hash=KNQWY5DFMRPV7UAA747VX7OQE27PBYC72RP7WYV5I2KXGWACNGAZ6UIJR27QSA7EMULXCNM4F2JAPE4SI6ZQSFUV6OFNLWPLCLWMSEA=",
+            "VALID_UNTIL": "2029-11-01@01:00:00 CEST"
+        },
+        "SOCKS_PORT": "25024",
+        "http_creds": "188.245.37.125:28024:def294246:def294246",
+        "is_port_vpn_connected": null,
+        "portID": "randomport951",
+        "portName": "randomport951",
+        "redirector": {
+            "ActiveState": "active",
+            "NRestarts": 0,
+            "SubState": "running",
+            "UPTIME": "-1 d, 6 h, 2 m, 6 s."
+        },
+        "socks5_creds": "188.245.37.125:25024:def294246:def294246"
+    }],
+    "860191063677385": [{
+        "HTTP_PORT": "8001",
+        "IS_EXPIRED": 0,
+        "IS_OVER_QUOTA": 0,
+        "LOGIN": "client",
+        "OS": "",
+        "PASSWORD": "proxy",
+        "PROXY_VALID_BEFORE": "",
+        "RESET_SECURE_LINK": {
+            "URL": "http://188.245.37.125:7016/apix/reset_ip_secure?hash=KNQWY5DFMRPV6NHJAZAVG4ECRKC2MN6IX2EJIRHHTK3RX6Y4TTVFMQRISB5WSAUVZBYCEDRTAQJ4O===",
+            "VALID_UNTIL": "2029-11-01@01:00:00 CEST"
+        },
+        "SOCKS_PORT": "5001",
+        "http_creds": "188.245.37.125:8001:client:proxy",
+        "is_port_vpn_connected": null,
+        "portID": "port8dJfIDXI",
+        "portName": "ritzy_promotion",
+        "redirector": {
+            "ActiveState": "active",
+            "NRestarts": 0,
+            "SubState": "running",
+            "UPTIME": "-1 d, 5 h, 53 m, 55 s."
+        },
+        "socks5_creds": "188.245.37.125:5001:client:proxy"
+    }]
+}
