@@ -19,6 +19,7 @@ app.use(express.json());
 app.use(cors());
 //  Define routes
 app.use("/test-actions", testActionRoute);
+// /test-actions/save-new-user
 app.use("/web-statistics", webStatisticsRoute);
 app.use("/payment", checkoutRoute);
 app.get("/", (req, res, next) => {

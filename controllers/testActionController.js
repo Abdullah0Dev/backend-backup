@@ -12,29 +12,9 @@ const {
   sendSMS,
   downloadVPNProfile,
 } = require("../proxyService");
-
-const assignProxy = async (req, res) => {
-  try {
-    const { userId } = req.body;
-    if (!userId) {
-      return res
-        .status(400)
-        .json({ error: "Missing 'userId' in request body." });
-    }
-
-    const proxy = await assignFreeProxy(userId);
-    if (!proxy) {
-      return res
-        .status(404)
-        .json({ error: "No proxy found. Please try again later." });
-    }
-
-    res.status(200).json(proxy);
-  } catch (error) {
-    console.log("Failed to assignProxy, error: ", error);
-    res.status(500).json({ error: "Failed to assign proxy." });
-  }
-};
+const Proxy = require("../models/ProxyModel");
+const cron = require("node-cron");
+const ClientProxiesModel = require("../models/ClientProxiesModel");
 
 const rotateIPAddress = async (req, res) => {
   try {
@@ -147,70 +127,6 @@ const internetConnectionTest = async (req, res) => {
     res.status(500).json({ error: "Failed to perform connection test." });
   }
 };
-// transform user information
-const transformUserInfo = (user, portInfo) => {
-  return {
-    ID: user.modem_details.IMEI,
-    operator: user.net_details.CELLOP || "Unknown",
-    port: {
-      http: parseInt(portInfo.HTTP_PORT),
-      socks: parseInt(portInfo.SOCKS_PORT)
-    },
-    proxyCredentials: {
-      username: portInfo.LOGIN,
-      password: portInfo.PASSWORD
-    },
-    assignedUser: {
-      email: null,
-      expiryDate: null
-    },
-    status: "available",
-    validUntil: new Date(portInfo.RESET_SECURE_LINK.VALID_UNTIL) || new Date()
-  };
-};
-// save the user info in mongodb
-const saveUserInformation = async (userInfo) => {
-  const { ID, ...data } = userInfo;
-  try {
-    await Proxy.findOneAndUpdate({ ID }, data, { upsert: true });
-  } catch (error) {
-    console.error("Error saving user info to MongoDB:", error);
-  }
-};
-
-const getUserInformation = async (req, res) => {
-  try {
-    const statusJson = await showStatus();
-    const activePort = await listActivePorts();
-
-    if (!statusJson || !activePort) {
-      return res
-        .status(404)
-        .json({ error: "Failed to retrieve user information." });
-    }
-    // assuming IMEI acts as the unique identifier
-    const mergedUserInfo = statusJson.map((user) => {
-      const {
-        modem_details: { IMEI },
-      } = user;
-      const portInfo = activePort[IMEI] ? activePort[IMEI][0] : null;
-      return {
-        ...user,
-        portInfo, // Attach proxy info if available
-      };
-    }); 
-     
-    res
-      .status(200)
-      .json({ 
-        userFullInformation: mergedUserInfo,
-      });
-  } catch (error) {
-    console.error("getUserInformation error:", error);
-    res.status(500).json({ error: "Failed to retrieve user information." });
-  }
-};
-
 const changeCredentials = async (req, res) => {
   try {
     const { portId } = req.params;
@@ -307,6 +223,166 @@ const downloadVPNProfileSetting = async (req, res) => {
     res.status(500).json({ error: "Failed to retrieve VPN profile." });
   }
 };
+// assign proxy
+const assignProxy = async (email) => {
+  try {
+    // Find all proxies with status "available"
+    const availableProxies = await Proxy.find({ status: "available" });
+    if (availableProxies.length === 0) return null;
+
+    // Select a random available proxy
+    const randomProxy =
+      availableProxies[Math.floor(Math.random() * availableProxies.length)];
+
+    // Update the selected proxy's status to "in-use" and assign user's email
+    randomProxy.status = "in-use";
+    randomProxy.assignedUser.email = email;
+
+    // Save the updated proxy status and assigned user in the Proxy collection
+    await randomProxy.save();
+
+    // Prepare the new proxy data to push to ClientProxiesModel
+    const newProxyData = {
+      ID: randomProxy.ID,
+      validUntil: randomProxy.validUntil,
+      status: "active",
+      operator: randomProxy.operator,
+      port: {
+        http: randomProxy.port.http,
+        socks: randomProxy.port.socks,
+      },
+      external_IP: randomProxy.external_IP,
+      added_time: randomProxy.added_time,
+      network_type: randomProxy.network_type,
+      is_online: randomProxy.is_online,
+      proxyCredentials: {
+        username: randomProxy.proxyCredentials.username,
+        password: randomProxy.proxyCredentials.password,
+      },
+      usageData: {
+        assignedDate: new Date(), // Track when the proxy was assigned
+        lastUsed: new Date(), // Track last usage date (initialize to now)
+      },
+    };
+
+    // Update or insert user's proxy data in ClientProxiesModel
+    await ClientProxiesModel.findOneAndUpdate(
+      { clientEmail: email },
+      { $push: { proxyData: newProxyData } },
+      { new: true, upsert: true }
+    );
+
+    // Return the assigned proxy data
+    return {
+      proxyID: randomProxy.ID,
+      httpPort: randomProxy.port.http,
+      socksPort: randomProxy.port.socks,
+      credentials: randomProxy.proxyCredentials,
+      externalIP: randomProxy.external_IP,
+      userEmail: email,
+      validUntil: randomProxy.validUntil,
+    };
+  } catch (error) {
+    console.error("Error assigning proxy:", error);
+    return null;
+  }
+};
+
+// transform user information
+// transform user information
+const transformUserInfo = (user, portInfo) => {
+  const validUntilDate = new Date(portInfo.RESET_SECURE_LINK.VALID_UNTIL);
+
+  return {
+    ID: user.modem_details.IMEI,
+    operator: user.net_details.CELLOP || "Unknown",
+    port: {
+      http: parseInt(portInfo.HTTP_PORT),
+      socks: parseInt(portInfo.SOCKS_PORT),
+    },
+    proxyCredentials: {
+      username: portInfo.LOGIN,
+      password: portInfo.PASSWORD,
+    },
+    assignedUser: {
+      email: user.email || null, // Defaulting to null if no email is provided
+      expiryDate: user.subscription?.expiryDate || null,
+      last_sale: user.sales?.last_sale || "No recent sale",
+      time_left_for_user: user.subscription?.time_left || Date.now(),
+      total_income: user.sales?.total_income || 12,
+    },
+    nickname: user.modem_details?.NICK || "Unknown",
+    external_IP: user.net_details?.EXT_IP || "0.0.0.0",
+    added_time: user.modem_details?.ADDED_TIME || new Date().toISOString(),
+    network_type: user.net_details?.CurrentNetworkType || "Unknown",
+    is_online: user.net_details?.IS_ONLINE === "yes" ? "online" : "offline",
+    status: "available",
+    validUntil: isNaN(validUntilDate.getTime()) ? new Date() : validUntilDate,
+  };
+};
+// save the user info in mongodb
+const saveUserInformation = async (userInfo) => {
+  const { ID, ...data } = userInfo;
+  try {
+    await Proxy.findOneAndUpdate({ ID }, data, {
+      upsert: true,
+      new: true,
+      runValidators: true,
+    });
+  } catch (error) {
+    console.error("Error saving user info to MongoDB:", error);
+  }
+};
+// Helper function that handles user information retrieval and saving
+const fetchAndSaveUserInfo = async () => {
+  const statusJson = await showStatus();
+  const activePort = await listActivePorts();
+
+  if (!statusJson || !activePort) {
+    throw new Error("Failed to retrieve user information.");
+  }
+
+  const mergedUserInfo = statusJson
+    .map((user) => {
+      const {
+        modem_details: { IMEI },
+      } = user;
+      const portInfo = activePort[IMEI] ? activePort[IMEI][0] : null;
+
+      return portInfo ? transformUserInfo(user, portInfo) : null;
+    })
+    .filter(Boolean);
+
+  // Save each user's information
+  await Promise.all(mergedUserInfo.map(saveUserInformation));
+  await Proxy.save();
+  return mergedUserInfo;
+};
+
+// Endpoint function to handle HTTP requests
+const getUserInformation = async (req, res) => {
+  try {
+    // await fetchAndSaveUserInfo();
+    //  Fetch the latest proxy info from mongodb
+    const latestProxies = await Proxy.find({});
+    console.log("latest data mongodb:", latestProxies);
+
+    res.status(200).json(latestProxies);
+  } catch (error) {
+    console.error("getUserInformation error:", error);
+    res.status(500).json({ error: "Failed to retrieve user information." });
+  }
+};
+
+// Cron job that runs every minute
+cron.schedule("0 * * * *", async () => {
+  try {
+    await fetchAndSaveUserInfo();
+    console.log("User information successfully retrieved and saved.");
+  } catch (error) {
+    console.error("Cron job error:", error);
+  }
+});
 
 module.exports = {
   assignProxy,

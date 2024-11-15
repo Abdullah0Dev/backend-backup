@@ -2,6 +2,7 @@ require("dotenv").config();
 // Import necessary libraries and modules
 const coinbase = require("coinbase-commerce-node");
 const { Client, resources, Webhook } = require("coinbase-commerce-node");
+const { assignProxy } = require("./testActionController");
 
 // Initialize Coinbase client
 const client = Client.init(process.env.COINBASE_API_KEY);
@@ -38,7 +39,6 @@ const proxyCheckout = async (req, res) => {
     });
   }
 };
-
 const proxyWebhooks = async (req, res) => {
   try {
     const event = Webhook.verifyEventBody(
@@ -47,31 +47,25 @@ const proxyWebhooks = async (req, res) => {
       process.env.COINBASE_WEBHOOK_SECRET
     );
 
-    // Handle payment confirmation and status updates
     if (event.type === "charge:confirmed") {
-      const { amount, currency } = event.data.pricing.local;
-      const user_id = event.data.metadata.user_id;
+      const email = "alhamdullah@gm.com"; // Ideally, obtain from event payload
 
-      // Update balance or mark the proxy as purchased
-      console.log("Payment successful:", amount, currency, user_id);
-      res.status(200).json({ message: "Payment confirmed successfully" });
-    } else if (event.type === "charge:failed") {
-      res.status(400).json({ message: "Payment failed. Please try again." });
-    } else if (event.type === "charge:delayed") {
-      res.status(202).json({ message: "Purchase delayed. Please wait." });
-    } else if (event.type === "charge:pending") {
-      res
-        .status(202)
-        .json({ message: "Purchase pending. Awaiting confirmation." });
-    } else if (event.type === "charge:resolved") {
-      res.status(200).json({ message: "Purchase resolved. Thank you!" });
-    } else if (event.type === "charge:created") {
-      res
-        .status(201)
-        .json({ message: "Purchase created. Please confirm payment." });
+      // Assign available proxy to user
+      const assignedProxy = await assignProxy(email);
+      if (!assignedProxy) {
+        return res.status(404).json({ error: "No available proxy to assign." });
+      }
+
+      console.log("Proxy assigned successfully:", assignedProxy);
+      res.status(200).json({
+        message: "Payment confirmed and proxy assigned",
+        assignedProxy,
+      });
+    } else {
+      res.status(200).json({ message: "Payment status updated", event });
     }
   } catch (error) {
-    console.error("Webhook error:", error); // Log error for debugging
+    console.error("Webhook error:", error);
     res.status(500).json({ message: "Server error. Please try again later." });
   }
 };

@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const bcrypt = require("bcrypt");
 const { isEmail } = require("validator");
 
 const proxySchema = new mongoose.Schema({
@@ -13,15 +12,29 @@ const proxySchema = new mongoose.Schema({
     email: {
       type: String,
       validate: {
-        validator: isEmail,
+        validator: (value) => value === null || isEmail(value),
         message: "Invalid user email",
       },
+      default: null, // Ensures that null is acceptable
     },
     expiryDate: {
       type: Date,
-      default: null, // Only set if the proxy is assigned
+      default: null,
     },
-  }, 
+    last_sale: {
+      type: String,
+      default: null,
+    },
+    time_left_for_user: {
+      type: String,
+      default: Date.now,
+    },
+    // time left for user
+    total_income: {
+      type: Number,
+      default: 12,
+    },
+  },
   status: {
     type: String,
     required: true,
@@ -57,7 +70,7 @@ const proxySchema = new mongoose.Schema({
     http: {
       type: Number,
       unique: true,
-      sparse: true, // Allow for optional unique ports
+      sparse: true,
     },
     socks: {
       type: Number,
@@ -67,20 +80,30 @@ const proxySchema = new mongoose.Schema({
   },
   proxyCredentials: {
     username: { type: String },
-    password: { type: String, select: false }, // Exclude password from queries by default
+    password: { type: String },
+  },
+  nickname: {
+    type: String,
+    required: [true, "please provide the nickname"],
+  },
+  external_IP: {
+    type: String,
+    required: [true, "please provide the external_IP"],
+  },
+  added_time: {
+    type: String,
+    required: [true, "'added time' is required"],
+  },
+  network_type: {
+    type: String,
+    required: [true, "'network type' is required"],
+  },
+  is_online: {
+    type: String,
+    required: [true, "'is online' is required"],
   },
 });
 
-// Hash the password before saving
-proxySchema.pre("save", async function (next) {
-  if (this.isModified("proxyCredentials.password")) {
-    const salt = await bcrypt.genSalt(10);
-    this.proxyCredentials.password = await bcrypt.hash(
-      this.proxyCredentials.password,
-      salt
-    );
-  }
-  next();
-});
-
-module.exports = mongoose.model("Proxy", proxySchema);
+const Proxy = mongoose.model("Proxy", proxySchema);
+module.exports = Proxy;
+// Nickname - last_sale	 - time left for user	- Total Income	External IP	- is_online - Network Type	- ADDED_TIME
