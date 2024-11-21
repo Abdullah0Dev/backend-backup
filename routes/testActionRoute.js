@@ -11,15 +11,29 @@ const {
   readPhoneSMS,
   sendSMStoPhone,
   downloadVPNProfileSetting,
+  getClientProxies,
+  purchaseSubscriptionCheck,
 } = require("../controllers/testActionController");
 const ClientProxiesModel = require("../models/ClientProxiesModel");
+const Proxy = require("../models/ProxyModel");
 
 const router = express.Router();
 
 // Proxy management
 router.post("/assign-proxy", assignProxy);
 router.post("/rotate-ip/:proxyId", rotateIPAddress);
-
+// Route to delete all documents in the Proxy collection
+router.delete("/delete-documents", async (req, res) => {
+  try {
+    await ClientProxiesModel.deleteMany({}); // Deletes all documents in the collection
+    await Proxy.deleteMany({}); // Deletes all documents in the collection
+    res
+      .status(200)
+      .json({ message: "All documents have been deleted successfully!" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete documents." });
+  }
+});
 // Network information
 router.get("/bandwidth/:portId", getBandWidth);
 router.post("/speed-test", internetSpeedTest);
@@ -29,6 +43,20 @@ router.get("/connection-results/:imei", internetConnectionTest);
 // User information
 router.get("/show-user-info", getUserInformation);
 router.post("/credentials/:portId", changeCredentials);
+router.post("/client-proxy-info/", async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    res.status(400).json({ message: "Please specify the client email" });
+  }
+  const availableProxies = await getClientProxies(email);
+
+  if (availableProxies.length === 0) {
+    res.status(404).json({ message: "No Proxies purchased" });
+  }
+  // return the results
+  res.status(200).json(availableProxies);
+});
 router.post("/save-new-user", async (req, res) => {
   const { email } = req.body;
 
@@ -54,9 +82,9 @@ router.post("/save-new-user", async (req, res) => {
   }
 });
 router.post("/purchase-proxy", async (req, res) => {
-  const { email } = req.body;
+  const { email, duration } = req.body;
   // Assign available proxy to user
-  const assignedProxy = await assignProxy(email);
+  const assignedProxy = await assignProxy(email, duration);
   if (!assignedProxy) {
     return res.status(404).json({ error: "No available proxy to assign." });
   }
@@ -107,6 +135,8 @@ router.put("/update-status/:id", async (req, res) => {
     res.status(400).json({ error: "Failed to update status." });
   }
 });
+// check if the proxy is expired:
+router.get("/check-proxies-status", purchaseSubscriptionCheck);
 
 // SMS operations
 router.get("/read-sms/:imei", readPhoneSMS);

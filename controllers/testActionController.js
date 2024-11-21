@@ -1,5 +1,4 @@
 const {
-  assignFreeProxy,
   rotateIP,
   getBandwidthUsage,
   getSpeedTest,
@@ -223,8 +222,26 @@ const downloadVPNProfileSetting = async (req, res) => {
     res.status(500).json({ error: "Failed to retrieve VPN profile." });
   }
 };
+// get client proxies
+const getClientProxies = async (email) => {
+  // const email = "duh.com";
+  try {
+    // Find all proxies with status "available"
+    const availableProxies = await ClientProxiesModel.find({
+      clientEmail: email,
+    });
+
+    if (availableProxies.length === 0) {
+      res.status(404).json({ message: "No Proxies purchased" });
+    }
+    return availableProxies;
+  } catch (error) {
+    console.error("Error fetching client proxy:", error);
+    return null;
+  }
+};
 // assign proxy
-const assignProxy = async (email) => {
+const assignProxy = async (email, duration) => {
   try {
     // Find all proxies with status "available"
     const availableProxies = await Proxy.find({ status: "available" });
@@ -233,18 +250,51 @@ const assignProxy = async (email) => {
     // Select a random available proxy
     const randomProxy =
       availableProxies[Math.floor(Math.random() * availableProxies.length)];
+    // calc the time‰
+    let durationInMs;
+    let price;
+    if (duration === "day") {
+      durationInMs = 24 * 60 * 60 * 1000; // 1 day in milliseconds
+      price = 5;
+    } else if (duration === "week") {
+      durationInMs = 7 * 24 * 60 * 60 * 1000; // 1 week in milliseconds
+      price = 25;
+    } else if (duration === "month") {
+      durationInMs = 30 * 24 * 60 * 60 * 1000; // 30 days (approx. 1 month) in milliseconds
+      price = 65;
+    } else {
+      throw new Error(
+        "Invalid duration specified. Use 'day', 'week', or 'month'."
+      );
+    }
+    const validUntil = new Date(Date.now() + durationInMs);
+    const msToTime = (duration = 7 * 24 * 60 * 60 * 1000) => {
+      const seconds = Math.floor((duration / 1000) % 60),
+        minutes = Math.floor((duration / (1000 * 60)) % 60),
+        hours = Math.floor((duration / (1000 * 60 * 60)) % 24),
+        days = Math.floor(duration / (1000 * 60 * 60 * 24));
+
+      return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+    };
+
+    const leftTime = msToTime(validUntil - Date.now()); // Get a string like "2d 5h 34m 22s"
 
     // Update the selected proxy's status to "in-use" and assign user's email
     randomProxy.status = "in-use";
     randomProxy.assignedUser.email = email;
-
+    randomProxy.assignedUser.expiryDate = validUntil;
+    randomProxy.assignedUser.last_sale = Date.now();
+    randomProxy.assignedUser.time_left_for_user = validUntil;
+    randomProxy.assignedUser.total_income =
+      (randomProxy.assignedUser.total_income || 0) + price; // Initialize if undefined
+    randomProxy.validUntil = validUntil;
     // Save the updated proxy status and assigned user in the Proxy collection
     await randomProxy.save();
 
     // Prepare the new proxy data to push to ClientProxiesModel
     const newProxyData = {
       ID: randomProxy.ID,
-      validUntil: randomProxy.validUntil,
+      validUntil,
       status: "active",
       operator: randomProxy.operator,
       port: {
@@ -262,6 +312,7 @@ const assignProxy = async (email) => {
       usageData: {
         assignedDate: new Date(), // Track when the proxy was assigned
         lastUsed: new Date(), // Track last usage date (initialize to now)
+        duration: duration,
       },
     };
 
@@ -280,7 +331,8 @@ const assignProxy = async (email) => {
       credentials: randomProxy.proxyCredentials,
       externalIP: randomProxy.external_IP,
       userEmail: email,
-      validUntil: randomProxy.validUntil,
+      validUntil,
+      leftTime,
     };
   } catch (error) {
     console.error("Error assigning proxy:", error);
@@ -289,13 +341,12 @@ const assignProxy = async (email) => {
 };
 
 // transform user information
-// transform user information
 const transformUserInfo = (user, portInfo) => {
   const validUntilDate = new Date(portInfo.RESET_SECURE_LINK.VALID_UNTIL);
 
   return {
     ID: user.modem_details.IMEI,
-    operator: user.net_details.CELLOP || "Unknown",
+    operator: user.net_details.CELLOP || "Odido",
     port: {
       http: parseInt(portInfo.HTTP_PORT),
       socks: parseInt(portInfo.SOCKS_PORT),
@@ -304,20 +355,20 @@ const transformUserInfo = (user, portInfo) => {
       username: portInfo.LOGIN,
       password: portInfo.PASSWORD,
     },
-    assignedUser: {
-      email: user.email || null, // Defaulting to null if no email is provided
-      expiryDate: user.subscription?.expiryDate || null,
-      last_sale: user.sales?.last_sale || "No recent sale",
-      time_left_for_user: user.subscription?.time_left || Date.now(),
-      total_income: user.sales?.total_income || 12,
-    },
+    // assignedUser: {
+    //   email: user.email, // Defaulting to null if no email is provided
+    //   expiryDate: user.subscription?.expiryDate,
+    //   last_sale: user.sales?.last_sale,
+    //   time_left_for_user: user.subscription?.time_left,
+    //   total_income: user.sales?.total_income,
+    // },
     nickname: user.modem_details?.NICK || "Unknown",
     external_IP: user.net_details?.EXT_IP || "0.0.0.0",
     added_time: user.modem_details?.ADDED_TIME || new Date().toISOString(),
     network_type: user.net_details?.CurrentNetworkType || "Unknown",
     is_online: user.net_details?.IS_ONLINE === "yes" ? "online" : "offline",
-    status: "available",
-    validUntil: isNaN(validUntilDate.getTime()) ? new Date() : validUntilDate,
+    // status: "available",
+    // validUntil: isNaN(validUntilDate.getTime()) ? new Date() : validUntilDate,
   };
 };
 // save the user info in mongodb
@@ -355,14 +406,14 @@ const fetchAndSaveUserInfo = async () => {
 
   // Save each user's information
   await Promise.all(mergedUserInfo.map(saveUserInformation));
-  await Proxy.save();
+  // await Proxy.save();
   return mergedUserInfo;
 };
 
 // Endpoint function to handle HTTP requests
 const getUserInformation = async (req, res) => {
   try {
-    // await fetchAndSaveUserInfo();
+    await fetchAndSaveUserInfo();
     //  Fetch the latest proxy info from mongodb
     const latestProxies = await Proxy.find({});
     console.log("latest data mongodb:", latestProxies);
@@ -375,7 +426,7 @@ const getUserInformation = async (req, res) => {
 };
 
 // Cron job that runs every minute
-cron.schedule("0 * * * *", async () => {
+cron.schedule("* * * * *", async () => {
   try {
     await fetchAndSaveUserInfo();
     console.log("User information successfully retrieved and saved.");
@@ -383,6 +434,73 @@ cron.schedule("0 * * * *", async () => {
     console.error("Cron job error:", error);
   }
 });
+// check if purchased is expired:
+
+const purchaseSubscriptionCheck = async (email) => {
+  try {
+    const currentDate = new Date();
+
+    // Validate email
+    if (!email) {
+      throw new Error("Email is required for subscription check.");
+    }
+
+    // Find the client purchased proxies by client email
+    const clientData = await ClientProxiesModel.findOne({ clientEmail: email });
+
+    if (
+      !clientData ||
+      !clientData.proxyData ||
+      clientData.proxyData.length === 0
+    ) {
+      return {
+        message: "No purchased proxies found for this client.",
+        expiredProxies: [],
+      };
+    }
+
+    const clientPurchasedProxies = clientData.proxyData;
+
+    // Check for expired proxies and delete them
+    const validProxies = [];
+    const expiredProxies = [];
+
+    for (const proxy of clientPurchasedProxies) {
+      const validUntil = new Date(proxy.validUntil);
+
+      if (validUntil < currentDate) {
+        expiredProxies.push(proxy.ID); // Track expired proxies for logging
+
+        // Find the proxy in the database and update its status to available
+        await Proxy.findOneAndUpdate(
+          { ID: proxy.ID },
+          {
+            $set: {
+              status: "available",
+              validUntil: null,
+              "assignedUser.email": null,
+              "assignedUser.expiryDate": null,
+              "assignedUser.time_left_for_user": null,
+            },
+          }
+        );
+      } else {
+        validProxies.push(proxy); // Retain non-expired proxies
+      }
+    }
+    // Update the client's proxy data by removing expired proxies
+    clientData.proxyData = validProxies;
+    await clientData.save();
+
+    return {
+      message: "Subscription check completed.",
+      expiredProxies,
+    };
+  } catch (error) {
+    console.error("Error during subscription check:", error);
+    throw new Error("Couldn't check subscription status.");
+  }
+};
 
 module.exports = {
   assignProxy,
@@ -395,5 +513,7 @@ module.exports = {
   changeCredentials,
   readPhoneSMS,
   sendSMStoPhone,
+  getClientProxies,
   downloadVPNProfileSetting,
+  purchaseSubscriptionCheck,
 };

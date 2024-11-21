@@ -22,17 +22,17 @@ const proxySchema = new mongoose.Schema({
       default: null,
     },
     last_sale: {
-      type: String,
+      type: mongoose.Schema.Types.Mixed,
       default: null,
     },
     time_left_for_user: {
-      type: String,
-      default: Date.now,
+      type: Date, // Store duration in milliseconds
+      default: null,
     },
     // time left for user
     total_income: {
       type: Number,
-      default: 12,
+      default: 0,
     },
   },
   status: {
@@ -44,7 +44,7 @@ const proxySchema = new mongoose.Schema({
   },
   validUntil: {
     type: Date,
-    required: [true, "You must provide an end date for proxy validity"],
+    default: null,
   },
   operator: {
     type: String,
