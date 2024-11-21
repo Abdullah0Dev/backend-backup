@@ -1,13 +1,27 @@
-require("dotenv").config();
+// require("dotenv").config();
 const axios = require("axios");
 const { json } = require("body-parser");
 const { MongoClient, ObjectId } = require("mongodb");
 const qs = require("qs"); // To format data for 'application/x-www-form-urlencoded'
 
+export const availableServers = {
+  server1: {
+    url: "http://188.245.37.125:7016",
+    auth: { username: "proxy", password: "proxy" },
+  },
+  server2: {
+    url: "http://188.234.37.125:7026",
+    auth: { username: "user1", password: "pass1" },
+  },
+  server3: {
+    url: "http://188.123.37.125:7056",
+    auth: { username: "user1", password: "pass1" },
+  },
+};
 // ProxySmart API Credentials
-const PROXY_SMART_API_BASE_URL = "http://188.245.37.125:7016";
-const PROXY_SMART_USERNAME = process.env.PROXY_SMART_USERNAME || "proxy";
-const PROXY_SMART_PASSWORD = process.env.PROXY_SMART_PASSWORD || "proxy";
+const PROXY_SMART_API_BASE_URL = availableServers.server1.url;
+const PROXY_SMART_USERNAME = availableServers.server1.auth.username;
+const PROXY_SMART_PASSWORD = availableServers.server1.auth.password;
 
 // MongoDB setup
 const MONGO_URI =
@@ -26,7 +40,6 @@ const connectDB = async () => {
   db = client.db(DATABASE_NAME);
   console.log("Connected to MongoDB");
 };
-
 // Helper to authenticate with ProxySmart API
 const proxySmartAuth = {
   auth: {
@@ -197,7 +210,8 @@ const editCredentials = async (portId) => {
 // http://188.245.37.125:7016/conf/edit_port/portw7VwiCvS  ?redirect=main
 // http://188.245.37.125:7016/conf/edit_port/portw7VwiCvS?redirect=main
 
-const getSpeedTest = async (imei) => { // ipAddress, port,imei, username, password
+const getSpeedTest = async (imei) => {
+  // ipAddress, port,imei, username, password
   try {
     // http://188.245.37.125:7016/modem/speedtest/352733105770960
     const response = await axios.get(
@@ -274,7 +288,7 @@ const updateCredentials = async (portId, newUsername, newPassword) => {
         ...proxySmartAuth,
       }
     );
- 
+
     console.log("Response Status:", response.status);
     console.log("Response Headers:", response.headers);
 

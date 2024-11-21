@@ -16,6 +16,7 @@ const {
 } = require("../controllers/testActionController");
 const ClientProxiesModel = require("../models/ClientProxiesModel");
 const Proxy = require("../models/ProxyModel");
+const { availableServers } = require("../proxyService");
 
 const router = express.Router();
 
@@ -81,43 +82,6 @@ router.post("/save-new-user", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
-router.post("/purchase-proxy", async (req, res) => {
-  const { email, duration } = req.body;
-  // Assign available proxy to user
-  const assignedProxy = await assignProxy(email, duration);
-  if (!assignedProxy) {
-    return res.status(404).json({ error: "No available proxy to assign." });
-  }
-
-  console.log("Proxy assigned successfully:", assignedProxy);
-  res.status(200).json({
-    message: "Payment confirmed and proxy assigned",
-    assignedProxy,
-  });
-});
-router.put("/update-assigned-user/:id", async (req, res) => {
-  const { id } = req.params;
-  const { email, expiryDate, last_sale, time_left_for_user, total_income } =
-    req.body;
-
-  try {
-    const updatedProxy = await Proxy.findOneAndUpdate(
-      { ID: id },
-      {
-        "assignedUser.email": email,
-        "assignedUser.expiryDate": expiryDate,
-        "assignedUser.last_sale": last_sale,
-        "assignedUser.time_left_for_user": time_left_for_user,
-        "assignedUser.total_income": total_income,
-      },
-      { new: true }
-    );
-
-    res.json(updatedProxy);
-  } catch (error) {
-    res.status(400).json({ error: "Failed to update assigned user." });
-  }
-});
 // valid until
 router.put("/update-status/:id", async (req, res) => {
   const { id } = req.params;
@@ -137,6 +101,20 @@ router.put("/update-status/:id", async (req, res) => {
 });
 // check if the proxy is expired:
 router.get("/check-proxies-status", purchaseSubscriptionCheck);
+
+router.post("/switch-servers", async (req, res) => {
+  const { serverId } = req.body;
+
+  if (!availableServers[serverId]) {
+    return res.status(400).json({ success: false, message: "Invalid server" });
+  }
+
+  // Logic to switch the server (e.g., store it in session or config)
+  const selectedServer = availableServers[serverId];
+  // store it in a variable or session
+  req.session.selectedServer = selectedServer;
+  res.status(200).json({ success: true, server: selectedServer });
+});
 
 // SMS operations
 router.get("/read-sms/:imei", readPhoneSMS);
