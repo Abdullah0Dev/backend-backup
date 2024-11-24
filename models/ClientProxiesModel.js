@@ -15,9 +15,8 @@ const ClientSchema = new mongoose.Schema({
     {
       ID: {
         type: String,
-        required: [true, "You must provide a valid client ID/IMEI"],
-        unique: true,
-        index: true,
+       required: [true, "You must provide a valid client ID/IMEI"],
+         
       },
       validUntil: {
         type: Date,

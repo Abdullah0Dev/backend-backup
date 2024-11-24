@@ -119,14 +119,37 @@ router.post(
             `session_price`,
             session_price?.line_items?.data[0]?.price?.id
           );
-
-          const email = data.object.customer_email || session.customer?.email;
+          // currency, user_image, username
+          const email =
+            data.object.customer_email ||
+            session.customer_details.email ||
+            session.customer?.email;
           const priceId = session_price?.line_items?.data[0]?.price?.id; // ||
           ("price_1QM5u2P5rD2RSXPgt6bTG6vE"); // session?.line_items?.data[0]?.price?.id;
-          console.log("priceId:", priceId, "Email:", email, "Duh Data:", data);
+          const currency = data.object.currency || session.currency || "USD";
+          const user_image =
+            "https://cdn-icons-png.flaticon.com/512/3135/3135715.png";
+          const username =
+            data.object.customer_details.name ||
+            session.customer_details.name ||
+            "Abdullah";
+          console.log(
+            "priceId:",
+            priceId,
+            "Email:",
+            email,
+            "currency:",
+            currency,
+            username,
+            user_image,
+            "Duh Data:",
+            data,
+            "Session:",
+            session
+          );
           if (email && priceId) {
             const duration = getDurationByPriceId(priceId);
-            await assignProxy(email, duration);
+            await assignProxy(email, duration, currency, user_image, username);
             io.emit("payment-success", {
               message: `New user! Payment successful for ${email}. Proxy duration: ${duration}.`,
             });

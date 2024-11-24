@@ -1,27 +1,13 @@
-// require("dotenv").config();
+require("dotenv").config();
 const axios = require("axios");
 const { json } = require("body-parser");
 const { MongoClient, ObjectId } = require("mongodb");
 const qs = require("qs"); // To format data for 'application/x-www-form-urlencoded'
 
-export const availableServers = {
-  server1: {
-    url: "http://188.245.37.125:7016",
-    auth: { username: "proxy", password: "proxy" },
-  },
-  server2: {
-    url: "http://188.234.37.125:7026",
-    auth: { username: "user1", password: "pass1" },
-  },
-  server3: {
-    url: "http://188.123.37.125:7056",
-    auth: { username: "user1", password: "pass1" },
-  },
-};
 // ProxySmart API Credentials
-const PROXY_SMART_API_BASE_URL = availableServers.server1.url;
-const PROXY_SMART_USERNAME = availableServers.server1.auth.username;
-const PROXY_SMART_PASSWORD = availableServers.server1.auth.password;
+const PROXY_SMART_API_BASE_URL = "http://188.245.37.125:7016";
+const PROXY_SMART_USERNAME = process.env.PROXY_SMART_USERNAME || "proxy";
+const PROXY_SMART_PASSWORD = process.env.PROXY_SMART_PASSWORD || "proxy";
 
 // MongoDB setup
 const MONGO_URI =
@@ -40,6 +26,7 @@ const connectDB = async () => {
   db = client.db(DATABASE_NAME);
   console.log("Connected to MongoDB");
 };
+
 // Helper to authenticate with ProxySmart API
 const proxySmartAuth = {
   auth: {
@@ -47,7 +34,6 @@ const proxySmartAuth = {
     password: PROXY_SMART_PASSWORD,
   },
 };
-
 // Assign a free proxy to a user
 const assignFreeProxy = async (userId) => {
   const freeProxy = await findFreeProxy();

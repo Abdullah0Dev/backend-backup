@@ -12,8 +12,10 @@ const {
   downloadVPNProfile,
 } = require("../proxyService");
 const Proxy = require("../models/ProxyModel");
+const Sales = require("../models/SalesModel");
 const cron = require("node-cron");
 const ClientProxiesModel = require("../models/ClientProxiesModel");
+const mongoose = require("mongoose");
 
 const rotateIPAddress = async (req, res) => {
   try {
@@ -222,6 +224,19 @@ const downloadVPNProfileSetting = async (req, res) => {
     res.status(500).json({ error: "Failed to retrieve VPN profile." });
   }
 };
+
+// get all sales
+const fullSalasOverview = async (req, res) => {
+  try {
+    const proxySales = await Sales.find({});
+    return res.status(200).json(proxySales);
+  } catch (error) {
+    console.log(`Couldn't fetch proxy sales`);
+    res
+      .status(500)
+      .json({ message: "An error Found while fetching data from the server" });
+  }
+};
 // get client proxies
 const getClientProxies = async (email) => {
   // const email = "duh.com";
@@ -241,55 +256,65 @@ const getClientProxies = async (email) => {
   }
 };
 // assign proxy
-const assignProxy = async (email, duration) => {
+const assignProxy = async (email, duration, currency, user_image, username) => {
+  const session = await mongoose.startSession();
+
   try {
+    session.startTransaction();
+
     // Find all proxies with status "available"
-    const availableProxies = await Proxy.find({ status: "available" });
-    if (availableProxies.length === 0) return null;
+    const availableProxies = await Proxy.find({ status: "available" }).session(
+      session
+    );
+    if (availableProxies.length === 0) throw new Error("No available proxies");
 
     // Select a random available proxy
     const randomProxy =
       availableProxies[Math.floor(Math.random() * availableProxies.length)];
-    // calc the time‰
-    let durationInMs;
-    let price;
+
+    let durationInMs, price;
     if (duration === "day") {
-      durationInMs = 24 * 60 * 60 * 1000; // 1 day in milliseconds
+      durationInMs = 24 * 60 * 60 * 1000;
       price = 5;
     } else if (duration === "week") {
-      durationInMs = 7 * 24 * 60 * 60 * 1000; // 1 week in milliseconds
+      durationInMs = 7 * 24 * 60 * 60 * 1000;
       price = 25;
     } else if (duration === "month") {
-      durationInMs = 30 * 24 * 60 * 60 * 1000; // 30 days (approx. 1 month) in milliseconds
+      durationInMs = 30 * 24 * 60 * 60 * 1000;
       price = 65;
     } else {
-      throw new Error(
-        "Invalid duration specified. Use 'day', 'week', or 'month'."
-      );
+      throw new Error("Invalid duration");
     }
+
     const validUntil = new Date(Date.now() + durationInMs);
-    const msToTime = (duration = 7 * 24 * 60 * 60 * 1000) => {
-      const seconds = Math.floor((duration / 1000) % 60),
-        minutes = Math.floor((duration / (1000 * 60)) % 60),
-        hours = Math.floor((duration / (1000 * 60 * 60)) % 24),
-        days = Math.floor(duration / (1000 * 60 * 60 * 24));
 
-      return `${days}d ${hours}h ${minutes}m ${seconds}s`;
-    };
-
-    const leftTime = msToTime(validUntil - Date.now()); // Get a string like "2d 5h 34m 22s"
-
-    // Update the selected proxy's status to "in-use" and assign user's email
+    // Update the selected proxy
     randomProxy.status = "in-use";
-    randomProxy.assignedUser.email = email;
-    randomProxy.assignedUser.expiryDate = validUntil;
-    randomProxy.assignedUser.last_sale = Date.now();
-    randomProxy.assignedUser.time_left_for_user = validUntil;
-    randomProxy.assignedUser.total_income =
-      (randomProxy.assignedUser.total_income || 0) + price; // Initialize if undefined
+    randomProxy.assignedUser = {
+      email,
+      expiryDate: validUntil,
+      last_sale: Date.now(),
+      time_left_for_user: validUntil,
+      total_income: (randomProxy.assignedUser?.total_income || 0) + price,
+    };
     randomProxy.validUntil = validUntil;
-    // Save the updated proxy status and assigned user in the Proxy collection
-    await randomProxy.save();
+    await randomProxy.save({ session });
+
+    // Create the sales record
+    await Sales.create(
+      [
+        {
+          currency,
+          sale_amount: price,
+          sale_date: new Date(),
+          sale_period: duration,
+          user_email: email,
+          user_image,
+          username,
+        },
+      ],
+      { session }
+    );
 
     // Prepare the new proxy data to push to ClientProxiesModel
     const newProxyData = {
@@ -323,7 +348,9 @@ const assignProxy = async (email, duration) => {
       { new: true, upsert: true }
     );
 
-    // Return the assigned proxy data
+    await session.commitTransaction();
+    session.endSession();
+
     return {
       proxyID: randomProxy.ID,
       httpPort: randomProxy.port.http,
@@ -332,11 +359,13 @@ const assignProxy = async (email, duration) => {
       externalIP: randomProxy.external_IP,
       userEmail: email,
       validUntil,
-      leftTime,
+      leftTime: `${Math.floor(durationInMs / (24 * 60 * 60 * 1000))}d`,
     };
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     console.error("Error assigning proxy:", error);
-    return null;
+    throw error;
   }
 };
 
@@ -516,4 +545,5 @@ module.exports = {
   getClientProxies,
   downloadVPNProfileSetting,
   purchaseSubscriptionCheck,
+  fullSalasOverview,
 };

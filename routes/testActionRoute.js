@@ -13,10 +13,13 @@ const {
   downloadVPNProfileSetting,
   getClientProxies,
   purchaseSubscriptionCheck,
+  fullSalasOverview,
 } = require("../controllers/testActionController");
 const ClientProxiesModel = require("../models/ClientProxiesModel");
 const Proxy = require("../models/ProxyModel");
 const { availableServers } = require("../proxyService");
+const Sales = require("../models/SalesModel");
+const { default: mongoose } = require("mongoose");
 
 const router = express.Router();
 
@@ -27,7 +30,8 @@ router.post("/rotate-ip/:proxyId", rotateIPAddress);
 router.delete("/delete-documents", async (req, res) => {
   try {
     await ClientProxiesModel.deleteMany({}); // Deletes all documents in the collection
-    await Proxy.deleteMany({}); // Deletes all documents in the collection
+    await Proxy.deleteMany({}); // Deletes all documents in the collection'
+    await Sales.deleteMany({}); // Deletes all documents in the collection'
     res
       .status(200)
       .json({ message: "All documents have been deleted successfully!" });
@@ -58,6 +62,45 @@ router.post("/client-proxy-info/", async (req, res) => {
   // return the results
   res.status(200).json(availableProxies);
 });
+router.post("/new-client-email/", async (req, res) => {
+  try {
+    const { email } = req.body;
+    console.log("Request body:", req.body); // Logs the incoming request
+
+    // Check if email is provided
+    if (!email) {
+      return res.status(201).json({ error: "Email is required." });
+    }
+
+    // Fetch all client data
+    const allClientData = await ClientProxiesModel.find({});
+    const clientEmails = allClientData.map((client) => client.clientEmail);
+
+    // Check if the email already exists in the database
+    if (clientEmails.includes(email)) {
+      return res
+        .status(202)
+        .json({ message: "Email is already in the database." });
+    }
+
+    // Create a new client with the email and empty proxyData
+    const newClient = new ClientProxiesModel({
+      clientEmail: email,
+      proxyData: [], // Or some default value
+    });
+    console.log("New Client Data:", newClient);
+
+    // Save the new client to MongoDB
+    await newClient.save();
+
+    res
+      .status(200)
+      .json({ clientEmails, message: "Email created successfully." });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error });
+  }
+});
+
 router.post("/save-new-user", async (req, res) => {
   const { email } = req.body;
 
@@ -67,7 +110,7 @@ router.post("/save-new-user", async (req, res) => {
 
     // Create a new client with the email and empty proxyData
     const newClient = new ClientProxiesModel({
-      clientEmail: email, // "alhamdullah@gm.com",
+      clientEmail: email,
       proxyData: [],
     });
 
@@ -82,6 +125,7 @@ router.post("/save-new-user", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+router.get("/sales-overview", fullSalasOverview);
 // valid until
 router.put("/update-status/:id", async (req, res) => {
   const { id } = req.params;

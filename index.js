@@ -39,9 +39,9 @@ app.set("io", io);
 // Middleware
 app.use(cors()); // Enable CORS for all origins
 app.use("/payment", checkoutRoute);
-app.use(express.json()); // Enable JSON parsing
 
 // Define routes
+app.use(express.json()); // Enable JSON parsing
 app.use("/test-actions", testActionRoute);
 app.use("/web-statistics", webStatisticsRoute);
 
