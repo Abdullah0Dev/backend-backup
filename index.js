@@ -9,12 +9,21 @@ const http = require("http");
 const testActionRoute = require("./routes/testActionRoute");
 const webStatisticsRoute = require("./routes/webStatisticsRoute");
 const checkoutRoute = require("./routes/checkoutRoute");
-
+const allowedOrigins = [
+  "https://power-proxies.vercel.app",
+  "http://localhost:3000", // You can add more origins here
+];
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000", // Adjust this to match your frontend origin
+    origin: function(origin, callback) {
+      if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    }, // Adjust this to match your frontend origin
     methods: ["GET", "POST"],
   },
 });
