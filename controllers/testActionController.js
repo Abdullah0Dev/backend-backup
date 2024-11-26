@@ -16,7 +16,6 @@ const Sales = require("../models/SalesModel");
 const cron = require("node-cron");
 const ClientProxiesModel = require("../models/ClientProxiesModel");
 const mongoose = require("mongoose");
-const request = require("request");
 const rotateIPAddress = async (req, res) => {
   try {
     const { proxyId } = req.params;
@@ -533,72 +532,78 @@ const purchaseSubscriptionCheck = async (email) => {
     console.error("Error during subscription check:", error);
   }
 };
+const axios = require("axios");
 
 const changeCredentialsOnCancel = async (IMEI) => {
+  function generateRandomString(length) {
+    return Math.random()
+      .toString(36)
+      .substring(2, 2 + length);
+  }
   try {
-    const { IMEI } = req.body;
     const username = generateRandomString(7);
     const password = generateRandomString(7);
     // Validate required fields
     if (!IMEI || !username || !password) {
-      return res.status(400).json({ message: "All fields are required." });
+      return { message: "All fields are required." };
     }
 
     // Fetch proxy by IMEI
     const proxy = await Proxy.findOne({ ID: IMEI });
     if (!proxy) {
-      return res.status(404).json({ message: "Proxy not found." });
+      return { message: "Proxy not found." };
     }
 
     // First request: Store port information
     const headers = { "Content-Type": "application/x-www-form-urlencoded" };
-    const dataString = `data={"IMEI": "${IMEI}", "portID": "${proxy.port.portID}", "portName": "${proxy.port.portName}", "proxy_password": "${password}", "proxy_login": "${username}", "http_port": ${proxy.port.http}, "socks_port": ${proxy.port.socks} }`;
-    const options1 = {
-      url: "http://188.245.37.125:7016/crud/store_port",
-      method: "POST",
-      headers,
-      body: dataString,
-      auth: { user: "proxy", pass: "proxy" },
-    };
+    const dataString = `data={"IMEI": "${IMEI}", "portID": "${proxy.port.portID}", "portName": "${proxy.port.portName}", "proxy_password": "${password}", "proxy_login": "${username}", "http_port": ${proxy.port.http}, "socks_port": ${proxy.port.socks}}`;
 
-    await new Promise((resolve, reject) => {
-      request(options1, (error, response, body) => {
-        if (error || response.statusCode !== 200) {
-          return reject(error || new Error("Failed to store port"));
-        }
-        console.log("Store Port Response:", body);
-        resolve(body);
+    await axios
+      .post("http://188.245.37.125:7016/crud/store_port", dataString, {
+        headers,
+        auth: {
+          username: "proxy",
+          password: "proxy",
+        },
+      })
+      .then((response) => {
+        console.log("Store Port Response:", response.data);
+      })
+      .catch((error) => {
+        console.error("Failed to store port:", error.message);
+        throw new Error("Failed to store port");
       });
-    });
-
-    // Send payload to external service
 
     // Second request: Apply stored port
-    const options2 = {
-      url: `http://188.245.37.125:7016/apix/apply_port?arg=${proxy.port.portID}`,
-      auth: { user: "proxy", pass: "proxy" },
-    };
-
-    await new Promise((resolve, reject) => {
-      request(options2, (error, response, body) => {
-        if (error || response.statusCode !== 200) {
-          return reject(error || new Error("Failed to apply port"));
+    await axios
+      .get(
+        `http://188.245.37.125:7016/apix/apply_port?arg=${proxy.port.portID}`,
+        {
+          auth: {
+            username: "proxy",
+            password: "proxy",
+          },
         }
-        console.log("Apply Port Response:", body);
-        resolve(body);
+      )
+      .then((response) => {
+        console.log("Apply Port Response:", response.data);
+      })
+      .catch((error) => {
+        console.error("Failed to apply port:", error.message);
+        throw new Error("Failed to apply port");
       });
-    });
-    // update the proxy username/pw in database
-    (proxy.proxyCredentials.password = password),
-      (proxy.proxyCredentials.username = username),
-      proxy.save();
+
+    // Update the proxy username/password in the database
+    proxy.proxyCredentials.password = password;
+    proxy.proxyCredentials.username = username;
+    await proxy.save();
+
     // Send success response
-    res.status(200).send({
+    return {
       message: "Port changes saved and applied successfully alhamdullah 😎",
-    });
+    };
   } catch (error) {
     console.error("Error:", error.message);
-    res.status(500).send("Something went wrong 😔");
   }
 };
 

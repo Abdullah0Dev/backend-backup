@@ -1,5 +1,4 @@
-const express = require("express");
-const request = require("request");
+const express = require("express"); 
 const axios = require("axios");
 const {
   assignProxy,
@@ -16,6 +15,7 @@ const {
   getClientProxies,
   purchaseSubscriptionCheck,
   fullSalasOverview,
+  changeCredentialsOnCancel,
 } = require("../controllers/testActionController");
 const ClientProxiesModel = require("../models/ClientProxiesModel");
 const Proxy = require("../models/ProxyModel");
@@ -47,74 +47,14 @@ router.get("/bandwidth/:portId", getBandWidth);
 router.post("/speed-test", internetSpeedTest);
 router.get("/ip-logs/:imei", getIPLogs);
 router.get("/connection-results/:imei", internetConnectionTest);
-function generateRandomString(length) {
-  return Math.random()
-    .toString(36)
-    .substring(2, 2 + length);
-}
+
 router.post("/save-port-changes", async (req, res) => {
   try {
     const { IMEI } = req.body;
-    const username = generateRandomString(7);
-    const password = generateRandomString(7);
-    // Validate required fields
-    if (!IMEI || !username || !password) {
-      return res.status(400).json({ message: "All fields are required." });
-    }
-
-    // Fetch proxy by IMEI
-    const proxy = await Proxy.findOne({ ID: IMEI });
-    if (!proxy) {
-      return res.status(404).json({ message: "Proxy not found." });
-    }
-
-    // First one:
-    // First request: Store port information
-    const headers = { "Content-Type": "application/x-www-form-urlencoded" };
-    const dataString = `data={"IMEI": "${IMEI}", "portID": "${proxy.port.portID}", "portName": "${proxy.port.portName}", "proxy_password": "${password}", "proxy_login": "${username}", "http_port": ${proxy.port.http}, "socks_port": ${proxy.port.socks} }`;
-    const options1 = {
-      url: "http://188.245.37.125:7016/crud/store_port",
-      method: "POST",
-      headers,
-      body: dataString,
-      auth: { user: "proxy", pass: "proxy" },
-    };
-
-    await new Promise((resolve, reject) => {
-      request(options1, (error, response, body) => {
-        if (error || response.statusCode !== 200) {
-          return reject(error || new Error("Failed to store port"));
-        }
-        console.log("Store Port Response:", body);
-        resolve(body);
-      });
-    });
-
-    // Send payload to external service
-
-    // Second request: Apply stored port
-    const options2 = {
-      url: `http://188.245.37.125:7016/apix/apply_port?arg=${proxy.port.portID}`,
-      auth: { user: "proxy", pass: "proxy" },
-    };
-
-    await new Promise((resolve, reject) => {
-      request(options2, (error, response, body) => {
-        if (error || response.statusCode !== 200) {
-          return reject(error || new Error("Failed to apply port"));
-        }
-        console.log("Apply Port Response:", body);
-        resolve(body);
-      });
-    });
-    // update the proxy username/pw in database
-    (proxy.proxyCredentials.password = password),
-      (proxy.proxyCredentials.username = username),
-      proxy.save();
-    // Send success response
-    res.status(200).send({
-      message: "Port changes saved and applied successfully alhamdullah 😎",
-    });
+    await changeCredentialsOnCancel(IMEI);
+    res
+      .status(200)
+      .json({ message: "alhamdullah, it changed it successfully 😎" });
   } catch (error) {
     console.error("Error:", error.message);
     res.status(500).send("Something went wrong 😔");
