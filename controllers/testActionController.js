@@ -16,7 +16,7 @@ const Sales = require("../models/SalesModel");
 const cron = require("node-cron");
 const ClientProxiesModel = require("../models/ClientProxiesModel");
 const mongoose = require("mongoose");
-
+const request = require("request");
 const rotateIPAddress = async (req, res) => {
   try {
     const { proxyId } = req.params;
@@ -517,7 +517,6 @@ const purchaseSubscriptionCheck = async (email) => {
           }
         );
         await Sales.findOneAndDelete({ ID: proxy.ID });
-
       } else {
         validProxies.push(proxy); // Retain non-expired proxies
       }
