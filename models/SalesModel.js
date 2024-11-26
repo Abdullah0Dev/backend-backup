@@ -1,6 +1,12 @@
 const mongoose = require("mongoose");
 const { isEmail } = require("validator");
 const salesSchema = new mongoose.Schema({
+  ID: {
+    type: String,
+    required: [true, "You must provide a valid proxy ID/IMEI"],
+    unique: true,
+    index: true,
+  },
   sale_amount: {
     type: Number,
     required: true,
@@ -36,7 +42,7 @@ const salesSchema = new mongoose.Schema({
   },
   currency: {
     type: String,
-    default: "USD", 
+    default: "USD",
   },
 });
 

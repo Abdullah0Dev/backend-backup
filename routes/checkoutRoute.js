@@ -8,7 +8,10 @@ const {
   proxyWebhooks,
 } = require("../controllers/checkoutController");
 const ClientProxiesModel = require("../models/ClientProxiesModel");
-const { assignProxy } = require("../controllers/testActionController");
+const {
+  assignProxy,
+  changeCredentialsOnCancel,
+} = require("../controllers/testActionController");
 const { error } = require("console");
 const { default: axios } = require("axios");
 // const { io } = require("..");
@@ -156,6 +159,8 @@ router.post(
             console.log(
               `Proxy assigned for ${email} with duration: ${duration}`
             );
+
+            return res.status(200).json("Proxy Assigned!!");
           } else {
             console.error("Missing email or priceId");
           }
@@ -180,6 +185,7 @@ router.post(
           }
           // Call `purchaseSubscriptionCheck` with the email
           const result = await purchaseSubscriptionCheck(customerEmail);
+          await changeCredentialsOnCancel(result?.expiredProxies[0]);
           io.emit("proxy-expired", {
             message: `${customerEmail} Left a proxy! ${result} - Now it's available for selling.`,
           });

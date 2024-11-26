@@ -67,6 +67,12 @@ const proxySchema = new mongoose.Schema({
     index: true,
   },
   port: {
+    portName: {
+      type: String,
+    },
+    portID: {
+      type: String,
+    },
     http: {
       type: Number,
       unique: true,

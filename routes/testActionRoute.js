@@ -1,4 +1,6 @@
 const express = require("express");
+var request = require("request");
+const axios = require("axios");
 const {
   assignProxy,
   rotateIPAddress,
@@ -20,6 +22,7 @@ const Proxy = require("../models/ProxyModel");
 const { availableServers } = require("../proxyService");
 const Sales = require("../models/SalesModel");
 const { default: mongoose } = require("mongoose");
+const Port = require("../models/PortModel");
 
 const router = express.Router();
 
@@ -44,8 +47,80 @@ router.get("/bandwidth/:portId", getBandWidth);
 router.post("/speed-test", internetSpeedTest);
 router.get("/ip-logs/:imei", getIPLogs);
 router.get("/connection-results/:imei", internetConnectionTest);
+function generateRandomString(length) {
+  return Math.random()
+    .toString(36)
+    .substring(2, 2 + length);
+}
+router.post("/save-port-changes", async (req, res) => {
+  try {
+    const { IMEI } = req.body;
+    const username = generateRandomString(7);
+    const password = generateRandomString(7);
+    // Validate required fields
+    if (!IMEI || !username || !password) {
+      return res.status(400).json({ message: "All fields are required." });
+    }
 
-// User information
+    // Fetch proxy by IMEI
+    const proxy = await Proxy.findOne({ ID: IMEI });
+    if (!proxy) {
+      return res.status(404).json({ message: "Proxy not found." });
+    }
+
+    // First one:
+    // First request: Store port information
+    const headers = { "Content-Type": "application/x-www-form-urlencoded" };
+    const dataString = `data={"IMEI": "${IMEI}", "portID": "${proxy.port.portID}", "portName": "${proxy.port.portName}", "proxy_password": "${password}", "proxy_login": "${username}", "http_port": ${proxy.port.http}, "socks_port": ${proxy.port.socks} }`;
+    const options1 = {
+      url: "http://188.245.37.125:7016/crud/store_port",
+      method: "POST",
+      headers,
+      body: dataString,
+      auth: { user: "proxy", pass: "proxy" },
+    };
+
+    await new Promise((resolve, reject) => {
+      request(options1, (error, response, body) => {
+        if (error || response.statusCode !== 200) {
+          return reject(error || new Error("Failed to store port"));
+        }
+        console.log("Store Port Response:", body);
+        resolve(body);
+      });
+    });
+
+    // Send payload to external service
+
+    // Second request: Apply stored port
+    const options2 = {
+      url: `http://188.245.37.125:7016/apix/apply_port?arg=${proxy.port.portID}`,
+      auth: { user: "proxy", pass: "proxy" },
+    };
+
+    await new Promise((resolve, reject) => {
+      request(options2, (error, response, body) => {
+        if (error || response.statusCode !== 200) {
+          return reject(error || new Error("Failed to apply port"));
+        }
+        console.log("Apply Port Response:", body);
+        resolve(body);
+      });
+    });
+    // update the proxy username/pw in database
+    (proxy.proxyCredentials.password = password),
+      (proxy.proxyCredentials.username = username),
+      proxy.save();
+    // Send success response
+    res.status(200).send({
+      message: "Port changes saved and applied successfully alhamdullah 😎",
+    });
+  } catch (error) {
+    console.error("Error:", error.message);
+    res.status(500).send("Something went wrong 😔");
+  }
+});
+
 router.get("/show-user-info", getUserInformation);
 router.post("/credentials/:portId", changeCredentials);
 router.post("/client-proxy-info/", async (req, res) => {
@@ -100,7 +175,6 @@ router.post("/new-client-email/", async (req, res) => {
     res.status(500).json({ message: "Server Error", error });
   }
 });
-
 router.post("/save-new-user", async (req, res) => {
   const { email } = req.body;
 
@@ -144,7 +218,12 @@ router.put("/update-status/:id", async (req, res) => {
   }
 });
 // check if the proxy is expired:
-router.get("/check-proxies-status", purchaseSubscriptionCheck);
+router.post("/check-proxies-status", async (req, res) => {
+  const { email } = req.body;
+  const results = await purchaseSubscriptionCheck(email);
+  console.log(results?.expiredProxies[0]);
+  res.status(200).json(results);
+});
 
 router.post("/switch-servers", async (req, res) => {
   const { serverId } = req.body;
