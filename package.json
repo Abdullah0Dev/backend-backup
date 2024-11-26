@@ -12,7 +12,7 @@
   "description": "",
   "dependencies": {
     "@mollie/api-client": "^4.1.0",
-    "axios": "^1.7.7",
+    "axios": "^1.7.8",
     "bcrypt": "^5.1.1",
     "body-parser": "^1.20.3",
     "coinbase-commerce-node": "^1.0.4",
@@ -24,6 +24,7 @@
     "express": "^4.21.1",
     "helmet": "^8.0.0",
     "json-web-token": "^3.2.0",
+    "lodash": "^4.17.21",
     "mongodb": "^6.10.0",
     "mongoose": "^8.7.2",
     "morgan": "^1.10.0",
@@ -33,6 +34,7 @@
     "request": "^2.88.2",
     "socket.io": "^4.8.1",
     "stripe": "^17.3.1",
+    "tough-cookie": "^5.0.0",
     "validator": "^13.12.0"
   }
 }
