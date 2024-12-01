@@ -59,22 +59,20 @@ router.post("/test-product-checkout", proxyDayTestCheckout);
 
 router.post("/stripe-webhook", async (req, res) => {
   const io = req.app.get("io"); // Get the io instance from the app
-
   const signature = req.headers["stripe-signature"];
-  const webhookSecret =
-    "whsec_QGMHI2d4Z0QfHAr8a9iZWgMddGPCbNA8";
+  const webhookSecret = "whsec_QGMHI2d4Z0QfHAr8a9iZWgMddGPCbNA8";
   let event;
+
   function getDurationByPriceId(priceId) {
     switch (priceId) {
-      case "price_1QM5u2P5rD2RSXPgt6bTG6vE":
+      case "price_1QQm0dP5rD2RSXPgbknhV9wT":
         return "day";
       case "price_1QM5u2P5rD2RSXPggu2dHM3J":
         return "week";
       case "price_1QM5u2P5rD2RSXPgF5S13xYC":
         return "month";
       default:
-        console.warn(`Unknown priceId: ${priceId}`);
-        return "week"; // Default fallback
+        return null; // Handle unknown priceId gracefully
     }
   }
 
@@ -104,33 +102,57 @@ router.post("/stripe-webhook", async (req, res) => {
 
         const subscription = session.subscription;
         const email = session.customer_details.email || session.customer?.email;
-        const priceId = session.line_items?.data[0]?.price?.id; // Adjust if necessary
+        const priceId = session.line_items?.data[0]?.price?.id; // Get price ID
         const currency = session.currency || "usd";
         const username = session.customer_details.name || "Default Name";
 
         if (email && priceId) {
           const duration = getDurationByPriceId(priceId);
+          if (!duration) {
+            console.error("Unknown duration for price ID:", priceId);
+            return res.status(400).json({ error: "Invalid price ID" });
+          }
+
           const user_image =
             "https://cdn-icons-png.flaticon.com/512/3135/3135715.png";
-          const freeProxy = await assignProxy(
-            email,
-            duration,
-            currency,
-            user_image,
-            username
-          );
-          console.log(
-            "Assigning proxy for email:",
-            freeProxy.userEmail,
-            "Proxy ID:",
-            freeProxy.proxyID
-          );
 
-          const proxyID = freeProxy.proxyID;
-          let imei =
-            proxyID || `FREE_IMEI_${Math.floor(Math.random() * 1000000)}`;
+          // If it's a one-time payment (no subscription)
+          if (!subscription) {
+            console.log("Processing one-time payment for:", email);
 
+            const freeProxy = await assignProxy(
+              email,
+              duration,
+              currency,
+              user_image,
+              username
+            );
+
+            io.emit("payment-success", {
+              message: `One-time payment successful for ${email}. Proxy duration: ${duration}`,
+            });
+
+            return res
+              .status(200)
+              .json({ message: "One-time Proxy Assigned!" });
+          }
+
+          // If it's a subscription
           if (subscription) {
+            console.log("Processing subscription for:", email);
+
+            const freeProxy = await assignProxy(
+              email,
+              duration,
+              currency,
+              user_image,
+              username
+            );
+
+            const proxyID = freeProxy.proxyID;
+            const imei =
+              proxyID || `FREE_IMEI_${Math.floor(Math.random() * 1000000)}`;
+
             try {
               await stripe.subscriptions.update(subscription.id, {
                 metadata: { imei: imei },
@@ -141,13 +163,15 @@ router.post("/stripe-webhook", async (req, res) => {
                 updateError.message
               );
             }
+
+            io.emit("payment-success", {
+              message: `Subscription payment successful for ${email}. Proxy duration: ${duration}`,
+            });
+
+            return res
+              .status(200)
+              .json({ message: "Subscription Proxy Assigned!" });
           }
-
-          io.emit("payment-success", {
-            message: `Payment successful for ${email}. Proxy duration: ${duration}`,
-          });
-
-          return res.status(200).json({ message: "Proxy Assigned!" });
         } else {
           console.error("Missing email or priceId");
           return res.status(400).json({ error: "Missing essential data" });
@@ -184,13 +208,10 @@ router.post("/stripe-webhook", async (req, res) => {
     }
     return res.status(200).json({ message: "Webhook handled Successfully🔥" });
   } catch (err) {
-    console.error(
-      `Stripe webhook error: ${err.message} | Event type: ${eventType}`
-    );
     return res.status(500).json({ error: "Internal Server Error", err });
   }
 
-  res.status(200).json({ message: "Webhook handled successfully" });
+  return res.status(200).json({ message: "Webhook handled successfully" });
 });
 
 router.post("/stripe-checkout", async (req, res) => {
@@ -369,33 +390,49 @@ router.post("/create-subscription", async (req, res) => {
 });
 
 // one payment testing - day
-router.post("/create-payment-intent", async (req, res) => {
-  const { email, imei } = req.body;
-
+router.post("/create-payment-session", async (req, res) => {
+  const { email } = req.body;
+  const imei = "234";
   try {
     // Check if the customer already exists
-    const customers = await stripe.customers.list({ email });
-    let customer = customers.data.length > 0 ? customers.data[0] : null;
+    const existingCustomers = await stripe.customers.list({ email });
+    let customer =
+      existingCustomers.data.length > 0 ? existingCustomers.data[0] : null;
 
-    // If customer doesn't exist, create one
+    // If the customer doesn't exist, create a new one
     if (!customer) {
       customer = await stripe.customers.create({ email });
     }
 
-    // Create a payment intent
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: 500, // $5 in cents
-      currency: "usd",
-      customer: customer.id,
-      metadata: { imei }, // Add IMEI to track the specific proxy
+    // Create a Checkout Session for a one-time payment
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment", // One-time payment mode
+      payment_method_types: ["card"],
+      customer: customer.id, // Attach the customer
+      line_items: [
+        {
+          price: "price_1QQm0dP5rD2RSXPgbknhV9wT", // one day test
+          quantity: 1,
+        },
+      ],
+      payment_intent_data: {
+        metadata: {
+          imei: imei, // Add IMEI here
+        },
+      },
+      success_url:
+        "http://localhost:3000/payment/success?session_id={CHECKOUT_SESSION_ID}", // Redirect on success
+      cancel_url: "http://localhost:3000/payment/cancel", // Redirect on cancel
     });
 
-    res.json({ clientSecret: paymentIntent.client_secret });
+    // Return the session URL for redirection
+    res.json({ url: session.url });
   } catch (error) {
-    console.error(error);
+    console.error("Error creating payment session:", error);
     res.status(400).json({ error: error.message });
   }
 });
+
 // fetch email subscriptions
 router.get("/subscription", async (req, res) => {
   const { email } = req.query;
