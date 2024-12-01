@@ -323,6 +323,8 @@ const assignProxy = async (email, duration, currency, user_image, username) => {
       status: "active",
       operator: randomProxy.operator,
       port: {
+        portName: randomProxy.port.portName,
+        portID: randomProxy.port.portID,
         http: randomProxy.port.http,
         socks: randomProxy.port.socks,
       },

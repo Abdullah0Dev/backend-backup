@@ -15,8 +15,7 @@ const ClientSchema = new mongoose.Schema({
     {
       ID: {
         type: String,
-       required: [true, "You must provide a valid client ID/IMEI"],
-         
+        required: [true, "You must provide a valid client ID/IMEI"],
       },
       validUntil: {
         type: Date,
@@ -47,6 +46,18 @@ const ClientSchema = new mongoose.Schema({
         default: "Odido",
       },
       port: {
+        portName: {
+          type: String,
+          unique: true,
+          required: true,
+          // default: "friendly_court",
+        },
+        portID: {
+          type: String,
+          unique: true,
+          required: true,
+          // default: "port_234wer",
+        },
         http: {
           type: Number,
           unique: true,

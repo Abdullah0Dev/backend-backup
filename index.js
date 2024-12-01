@@ -17,7 +17,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: function(origin, callback) {
+    origin: function (origin, callback) {
       if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
         callback(null, true);
       } else {
@@ -47,10 +47,14 @@ app.set("io", io);
 
 // Middleware
 app.use(cors()); // Enable CORS for all origins
-app.use("/payment", checkoutRoute);
+// Middleware to parse raw body for Stripe webhook
+app.use("/payment/stripe-webhook", express.raw({ type: "application/json" }));
+
+// Enable JSON parsing for other routes
+app.use(express.json());
 
 // Define routes
-app.use(express.json()); // Enable JSON parsing
+app.use("/payment", checkoutRoute);
 app.use("/test-actions", testActionRoute);
 app.use("/web-statistics", webStatisticsRoute);
 

@@ -4,9 +4,59 @@ const coinbase = require("coinbase-commerce-node");
 const { Client, resources, Webhook } = require("coinbase-commerce-node");
 const { assignProxy } = require("./testActionController");
 
+const stripe = require("stripe")(
+  "sk_test_51PywYsP5rD2RSXPgiOG24minf0HsQEDZkqlWSYol0puCfP3EYPzNwzxBUAWBNXYogOojJwZ9RJUUIxC4hzHpHEMK00vngqpDnE"
+);
 // Initialize Coinbase client
 const client = Client.init(process.env.COINBASE_API_KEY);
 client.setRequestTimeout(3000);
+const proxyDayTestCheckout = async (req, res) => {
+  try {
+    // Validate request body
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: "Email is required." });
+    }
+
+    // Create checkout session
+    const session = await stripe.checkout.sessions.create({
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: "Test Proxy & Improve your privacy - 24 hours",
+            },
+            unit_amount: 500, // $5 in cents
+          },
+          quantity: 1,
+        },
+      ],
+      payment_method_types: ["card"],
+      mode: "payment",
+      customer_email: email,
+      success_url: `${"http://localhost:4000"}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${"http://localhost:4000"}/payment/cancel`,
+    });
+
+    // Respond with session data
+    return res.status(200).json({ session });
+  } catch (error) {
+    console.error("Error creating checkout session:", error);
+
+    // Handle specific Stripe errors
+    if (error.type === "StripeCardError") {
+      return res
+        .status(400)
+        .json({ message: "Card declined. Please try again." });
+    }
+
+    // Fallback error response
+    return res
+      .status(500)
+      .json({ message: "Server error. Please try again later." });
+  }
+};
 
 const proxyCheckout = async (req, res) => {
   console.log("Request body:", req.body); // Add this line for debugging
@@ -22,6 +72,7 @@ const proxyCheckout = async (req, res) => {
         currency: currency,
       },
       pricing_type: "fixed_price",
+
       metadata: {
         user_id: "1234", // Customize to associate with a specific user
       },
@@ -73,6 +124,7 @@ const proxyWebhooks = async (req, res) => {
 module.exports = {
   proxyCheckout,
   proxyWebhooks,
+  proxyDayTestCheckout,
 };
 
 /*

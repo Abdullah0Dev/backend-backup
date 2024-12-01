@@ -1,4 +1,4 @@
-const express = require("express"); 
+const express = require("express");
 const axios = require("axios");
 const {
   assignProxy,
@@ -27,7 +27,22 @@ const Port = require("../models/PortModel");
 const router = express.Router();
 
 // Proxy management
-router.post("/assign-proxy", assignProxy);
+router.post("/assign-proxy", async (req, res) => {
+  const { email, duration, currency, user_image, username } = req.body;
+  const bruh = await assignProxy(
+    email,
+    duration,
+    currency,
+    user_image,
+    username
+  );
+  res
+    .status(200)
+    .json({
+      message: "All documents have been deleted successfully!",
+      data: bruh,
+    });
+});
 router.post("/rotate-ip/:proxyId", rotateIPAddress);
 // Route to delete all documents in the Proxy collection
 router.delete("/delete-documents", async (req, res) => {
