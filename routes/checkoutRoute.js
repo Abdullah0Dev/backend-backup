@@ -424,8 +424,8 @@ router.post("/create-payment-session", async (req, res) => {
         },
       },
       success_url:
-        "http://localhost:3000/payment/success?session_id={CHECKOUT_SESSION_ID}", // Redirect on success
-      cancel_url: "http://localhost:3000/payment/cancel", // Redirect on cancel
+        "https://power-proxies.vercel.app/payment/success?session_id={CHECKOUT_SESSION_ID}", // Redirect on success
+      cancel_url: "https://power-proxies.vercel.app/payment/cancel", // Redirect on cancel
     });
 
     // Return the session URL for redirection
