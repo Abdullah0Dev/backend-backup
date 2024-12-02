@@ -30,7 +30,7 @@ stripe.products
     stripe.prices
       .create({
         unit_amount: 1200,
-        currency: "usd",
+        currency: "EUR",
         recurring: {
           interval: "month",
         },
@@ -103,7 +103,7 @@ router.post("/stripe-webhook", async (req, res) => {
         const subscription = session.subscription;
         const email = session.customer_details.email || session.customer?.email;
         const priceId = session.line_items?.data[0]?.price?.id; // Get price ID
-        const currency = session.currency || "usd";
+        const currency = session.currency || "EUR";
         const username = session.customer_details.name || "Default Name";
 
         if (email && priceId) {
@@ -220,7 +220,7 @@ router.post("/stripe-checkout", async (req, res) => {
     line_items: [
       {
         price_data: {
-          currency: currency ?? "usd", // eur
+          currency: currency ?? "EUR", // eur
           product_data: {
             name: "Purchase a Proxy - Enhance Your Online Security and Privacy",
             images: [
@@ -376,13 +376,16 @@ router.post("/create-subscription", async (req, res) => {
           imei: imei, // Add IMEI here
         },
       },
+      // appearance: {
+      //   theme: "light", // Options: 'auto', 'dark', 'light'
+      // },
       success_url:
         "http://localhost:3000/payment/success?session_id={CHECKOUT_SESSION_ID}", // success
       cancel_url: "http://localhost:3000/payment/cancel", //  cancel page
     });
-
     // Return the session URL for redirection
-    res.json({ url: session.url, session: session });
+    res.json({ url: session.url });
+    // res.redirect(session.url);
   } catch (error) {
     console.error("Error creating subscription:", error);
     res.status(400).json({ error: error.message });
@@ -433,8 +436,8 @@ router.post("/create-payment-session", async (req, res) => {
   }
 });
 
-// fetch email subscriptions
-router.get("/subscription", async (req, res) => {
+// fetch email subscriptions// Unified endpoint to fetch subscriptions and one-time payments
+router.get("/purchases", async (req, res) => {
   const { email } = req.query;
 
   try {
@@ -445,23 +448,61 @@ router.get("/subscription", async (req, res) => {
     }
 
     const customer = customers.data[0];
+    const customerId = customer.id;
 
     // Fetch subscriptions for the customer
     const subscriptions = await stripe.subscriptions.list({
-      customer: customer.id,
+      customer: customerId,
+    });
+    const formattedSubscriptions = subscriptions.data.map((sub) => {
+      const subscriptionItem = sub.items.data[0];
+      const plan = subscriptionItem.plan;
+
+      return {
+        id: sub.id,
+        type: "subscription", // Indicates it's a subscription
+        status: sub.status,
+        amount: plan.amount / 100, // Price in USD
+        currency: plan.currency,
+        billingCycle: {
+          start: sub.current_period_start,
+          end: sub.current_period_end,
+        },
+        imei: sub.metadata.imei || null,
+        created: sub.current_period_start, // Use `current_period_start` for sorting
+        description: "Subscription Service",
+      };
     });
 
-    // Include metadata (e.g., IMEI) in the response
-    const formattedSubscriptions = subscriptions.data.map((sub) => ({
-      id: sub.id,
-      status: sub.status,
-      priceId: sub.items.data[0].price.id,
-      currentPeriodStart: sub.current_period_start,
-      currentPeriodEnd: sub.current_period_end,
-      imei: sub.metadata.imei || null, // Access IMEI from metadata
+    // Fetch one-time payments for the customer
+    const sessions = await stripe.checkout.sessions.list({
+      customer: customerId,
+    });
+    const paidSessions = sessions.data.filter(
+      (session) => session.payment_status === "paid"
+    );
+
+    const formattedOneTimePayments = paidSessions.map((session) => ({
+      id: session.id,
+      type: "one-time", // Indicates it's a one-time payment
+      status: session.payment_status,
+      amount: session.amount_total / 100, // Convert cents to dollars
+      currency: session.currency,
+      billingCycle: null, // No billing cycle for one-time payments
+      imei: null, // Typically not available for one-time payments
+      created: session.created, // Use the `created` timestamp for sorting
+      description: session.metadata.description || "One-Time Payment",
     }));
 
-    res.json({ subscriptions: formattedSubscriptions });
+    // Combine and sort purchases by date (latest first)
+    const purchases = [
+      ...formattedSubscriptions,
+      ...formattedOneTimePayments,
+    ].sort(
+      (a, b) => b.created - a.created // Sort by the `created` timestamp in descending order
+    );
+
+    res.json({ purchases });
   } catch (error) {
     console.error(error);
     res.status(400).json({ error: error.message });

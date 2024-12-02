@@ -52,10 +52,12 @@ how many people use payment process using Willie vs coingate
 
 <!-- 
 ! Billing:
- proxy IMEI, time left, country, Details
+ proxy IMEI, time left, country, Details, Subscription per, 
 
  -> next bill, billed time.., 
  Payment Info: Card details (securely stored), billing history.
 Subscription Management: Upgrade, downgrade, or cancel plans.
 9> 
+
+
  -->
