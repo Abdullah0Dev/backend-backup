@@ -380,7 +380,7 @@ router.post("/create-subscription", async (req, res) => {
       //   theme: "light", // Options: 'auto', 'dark', 'light'
       // },
       success_url:
-        "http://localhost:3000/payment/success?session_id={CHECKOUT_SESSION_ID}", // success
+        "https://power-proxies.vercel.app/payment/success?session_id={CHECKOUT_SESSION_ID}", // success
       cancel_url: "http://localhost:3000/payment/cancel", //  cancel page
     });
     // Return the session URL for redirection
