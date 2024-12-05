@@ -509,5 +509,165 @@ router.get("/purchases", async (req, res) => {
   }
 });
 
+// fetch email subscriptions
+router.get("/manage-subscription", async (req, res) => {
+  const { email } = req.query;
+
+  try {
+    // Get customer by email
+    const customers = await stripe.customers.list({ email });
+    if (customers.data.length === 0) {
+      return res.status(404).json({ error: "Customer not found" });
+    }
+
+    const customer = customers.data[0];
+
+    // Fetch subscriptions for the customer
+    const subscriptions = await stripe.subscriptions.list({
+      customer: customer.id,
+    });
+    /*
+  IMEI: number; // imei
+  country: string;
+ ? nick: string;
+  subscription: string;
+  billedTime: string;
+  nextBill: string;
+ ? timeLeft: string;
+  flag: string;
+  ?manageSubscription: string;
+  status: string;
+*/
+    function getDurationByPriceId(priceId) {
+      switch (priceId) {
+        case "price_1QQm0dP5rD2RSXPgbknhV9wT":
+          return "daily";
+        case "price_1QM5u2P5rD2RSXPggu2dHM3J":
+          return "weekly";
+        case "price_1QM5u2P5rD2RSXPgF5S13xYC":
+          return "monthly";
+        default:
+          return null; // Handle unknown priceId gracefully
+      }
+    }
+    // Define msToTime with a proper type
+    const msToTime = (duration) => {
+      (minutes = Math.floor((duration / (1000 * 60)) % 60)),
+        (hours = Math.floor((duration / (1000 * 60 * 60)) % 24)),
+        (days = Math.floor(duration / (1000 * 60 * 60 * 24)));
+
+      return `${days}d ${hours}h ${minutes}m `;
+    };
+    // Include metadata (e.g., IMEI) in the response
+    const formattedSubscriptions = subscriptions.data.map((sub) => {
+      const validUntil = new Date(sub.current_period_end * 1000); // Stripe timestamps are in seconds
+      const remainingTime = validUntil.getTime() - Date.now(); // Remaining time in milliseconds
+
+      const remainingTimeFormatted =
+        remainingTime > 0 ? msToTime(remainingTime) : "Expired"; // Handle expired subscriptions
+      // items.data.price.id
+      console.log("billed time:", sub);
+      return {
+        subscriptionItem: sub.items.data[0].id,
+        sub: sub.items.data[0].subscription,
+        status: sub.status,
+        billedTime: sub.current_period_start,
+        nextBill: sub.current_period_end,
+        imei: sub.metadata.imei || null, // Access IMEI from metadata
+        country: "Netherlands",
+        nick: "Abdullah", // needs changes
+        subscription: getDurationByPriceId(sub.items.data[0].price?.id),
+        timeLeft: `${remainingTimeFormatted}`, /// needs changes
+        flag: "NL",
+        customerID: customer.id,
+      };
+    });
+
+    // res.json(subscriptions);
+    res.json({ subscriptions: formattedSubscriptions });
+  } catch (error) {
+    console.error(error);
+    res.status(400).json({ error: error.message });
+  }
+});
+// manage proxy billing
+router.post("/stripe-manage-billing-info", async (req, res) => {
+  try {
+    const { customerId } = req.body; // Pass the Stripe customer ID from your frontend
+
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: "https://power-proxies.vercel.app/dashboard", // Redirect users back after managing subscription
+    });
+
+    res.json({ url: session.url }); // Send the session URL to the frontend
+  } catch (error) {
+    console.error("Error creating customer portal session:", error);
+    res
+      .status(500)
+      .json({ message: "Failed to create customer portal session." });
+  }
+});
+router.post("/stripe-cancel-subscription", async (req, res) => {
+  try {
+    const { subscriptionId } = req.body; // Subscription ID from the user action
+
+    const canceledSubscription = await stripe.subscriptions.cancel(subscriptionId);
+
+    res.json({ message: "Subscription canceled", canceledSubscription });
+  } catch (error) {
+    console.error("Error canceling subscription:", error);
+    res.status(500).json({ message: "Failed to cancel subscription." });
+  }
+});
+router.post("/stripe-upgrade-subscription", async (req, res) => {
+  try {
+    const { subscriptionId, subscriptionItem } = req.body; // Pass subscriptionId and new price ID
+    // Fetch the subscription to get the item ID
+
+    const upgradeSubscription = await stripe.subscriptions.update(
+      subscriptionId,
+      {
+        items: [
+          {
+            id: subscriptionItem,
+            price: "price_1QM5u2P5rD2RSXPgF5S13xYC", // Replace with the new plan's price ID
+          },
+        ],
+      }
+    );
+
+    res.json(upgradeSubscription);
+  } catch (error) {
+    console.error("Error upgrading subscription:", error);
+    res
+      .status(500)
+      .json({ message: "Failed to upgrade subscription.", error: error });
+  }
+});
+router.post("/stripe-downgrade-subscription", async (req, res) => {
+  try {
+    const { subscriptionId, subscriptionItem } = req.body; // Pass subscriptionId and new price ID
+    // Fetch the subscription to get the item ID
+
+    const downgradeSubscription = await stripe.subscriptions.update(
+      subscriptionId,
+      {
+        items: [
+          {
+            id: subscriptionItem,
+            price: "price_1QM5u2P5rD2RSXPggu2dHM3J", // Replace with the new plan's price ID
+          },
+        ],
+      }
+    );
+
+    res.json(downgradeSubscription);
+  } catch (error) {
+    console.error("Error downgrading subscription:", error);
+    res.status(500).json({ message: "Failed to downgrade subscription." });
+  }
+});
+
 module.exports = router;
 // WebMinds@$234

@@ -22,7 +22,11 @@ I need to connect them to each other
 Backend and the webb app
 by using proxysmart coding
 documentation about this can be found on their website https://proxysmart.org/wiki/v2:readme
+<!-- 
+exe ip: 178.225.38.228
+modem IP: 192.168.0.1	0
 
+ -->
 <!--
 * => user proxies implements
 get the the email/username from the client -> then make a mongodb data base for this specific user which is gonna be with listing his own bought proxies with its data.. and make expire data.. then it deleted automatically -> then he need to renew the proxy
@@ -44,20 +48,23 @@ how many people use payment process using Willie vs coingate
  1. Nickname, Country, IMEI, proxy login/password, port { http, socks}, list for sale(true/false), last sale, time left for user, Total Income, status, Actions{quite, rotate ip}
  2. link to dashboard: http://188.245.37.125:7016
 
- ? today's planning- 
+ ? today's planning-
     ! do most of the backend stuff
   • structure the backend and make it better with better looks
 
  -->
 
-<!-- 
+<!--
 ! Billing:
- proxy IMEI, time left, country, Details, Subscription per, 
+ proxy IMEI, time left, country, Details, Subscription per+`
 
- -> next bill, billed time.., 
+ -> next bill, billed time..,
  Payment Info: Card details (securely stored), billing history.
 Subscription Management: Upgrade, downgrade, or cancel plans.
-9> 
+9>
 
+?!!! -> changes
+make the notificaiton save tuntil the client get back to the dashboard
+change billing&renewal
 
  -->
