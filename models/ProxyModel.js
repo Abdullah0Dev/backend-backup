@@ -111,5 +111,4 @@ const proxySchema = new mongoose.Schema({
 });
 
 const Proxy = mongoose.model("Proxy", proxySchema);
-module.exports = Proxy;
-// Nickname - last_sale	 - time left for user	- Total Income	External IP	- is_online - Network Type	- ADDED_TIME
+module.exports = Proxy; 

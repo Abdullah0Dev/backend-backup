@@ -1,6 +1,5 @@
 // Import necessary packages
 const mongoose = require("mongoose");
-const bcrypt = require("bcrypt");
 const { isEmail } = require("validator");
 
 const ClientSchema = new mongoose.Schema({

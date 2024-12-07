@@ -31,7 +31,7 @@ const SubscriptionSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { timestamps: true } // Adds createdAt and updatedAt fields
+  { timestamps: true } 
 );
 
 module.exports = mongoose.model("ProxySubscription", SubscriptionSchema);
