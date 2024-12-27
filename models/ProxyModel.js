@@ -39,8 +39,7 @@ const proxySchema = new mongoose.Schema({
     type: String,
     required: true,
     enum: ["in-use", "available"],
-    default: "available",
-    index: true,
+    default: "available", 
   },
   validUntil: {
     type: Date,
@@ -62,9 +61,9 @@ const proxySchema = new mongoose.Schema({
       "Visible",
       "Consumer Cellular",
       "Metro by T-Mobile",
+      "unknown",
     ],
-    default: "Odido",
-    index: true,
+    default: "Odido", 
   },
   port: {
     portName: {
@@ -74,14 +73,10 @@ const proxySchema = new mongoose.Schema({
       type: String,
     },
     http: {
-      type: Number,
-      unique: true,
-      sparse: true,
+      type: Number, 
     },
     socks: {
-      type: Number,
-      unique: true,
-      sparse: true,
+      type: Number, 
     },
   },
   proxyCredentials: {

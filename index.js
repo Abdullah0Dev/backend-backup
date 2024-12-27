@@ -11,6 +11,7 @@ const webStatisticsRoute = require("./routes/webStatisticsRoute");
 const checkoutRoute = require("./routes/checkoutRoute");
 const allowedOrigins = [
   "https://power-proxies.vercel.app",
+  "https://powerproxy.io",
   "http://localhost:3000", // You can add more origins here
 ];
 const app = express();
